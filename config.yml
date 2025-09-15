@@ -52,7 +52,7 @@ strategy:
 
 # Logging configuration
 logging:
-  level: "debug"
+  level: "debug"                # debug info warn error
   output: "logs/app.log"
   max_size: 100
   max_age: 7

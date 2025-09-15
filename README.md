@@ -29,10 +29,10 @@
 
 ```bash
 # 复制配置模板
-cp configs/config.yaml.example config.yaml
+cp configs/config.yml.example config.yml
 
 # 编辑配置文件
-vim config.yaml
+vim config.y  ml
 ```
 
 #### 配置项说明
@@ -175,22 +175,6 @@ go build -o build/lighter-trader cmd/main.go
 4. **测试**: 建议先在测试环境中验证功能
 5. **风险**: 套利策略存在市场风险，请谨慎使用
 6. **时间**: 两个交易所订单执行有时间差，注意市场波动风险
-
-## 依赖项
-
-### 核心依赖
-- `github.com/elliottech/lighter-go`: Lighter Go SDK
-- `github.com/adshao/go-binance/v2`: Binance Go SDK
-- `github.com/spf13/viper`: 配置管理库
-- `go.uber.org/zap`: 高性能日志库
-- `gopkg.in/natefinch/lumberjack.v2`: 日志轮转库
-
-### 间接依赖
-- `github.com/elliottech/poseidon_crypto`: Poseidon加密库
-- `github.com/ethereum/go-ethereum`: 以太坊相关工具
-- `github.com/fsnotify/fsnotify`: 文件系统监控
-- `go.uber.org/multierr`: 多错误处理
-- `github.com/gorilla/websocket`: WebSocket连接 (Binance)
 
 ## 许可证
 

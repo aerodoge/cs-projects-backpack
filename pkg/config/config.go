@@ -89,7 +89,7 @@ func Load() (*Config, error) {
 	v := viper.New()
 
 	v.SetConfigName("config")
-	v.SetConfigType("yaml")
+	v.SetConfigType("yml")
 
 	v.AddConfigPath(".")
 	v.AddConfigPath("./configs")

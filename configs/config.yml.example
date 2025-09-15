@@ -1,0 +1,60 @@
+# Application settings
+app:
+name: "lighter-trader"
+version: "1.0.0"
+environment: "development"
+
+# Lighter exchange configuration
+lighter:
+# These should be set via environment variables for security
+api_key: "api_key"
+secret_key: "secret_key"
+private_key: "private_key"
+
+# Configuration with defaults
+base_url: "https://api.lighter.xyz"
+chain_id: 1
+account_index: 1
+api_key_index: 0
+
+# Binance exchange configuration
+binance:
+# These should be set via environment variables for security
+api_key: "binance_api_key"
+secret_key: "binance_secret_key"
+testnet: true
+
+# Trading configuration
+trading:
+usdt_amount: 1000
+usdc_amount: 1000
+leverage: 3
+
+# Strategy configuration
+strategy:
+# Strategy type: lighter, binance, arbitrage, dynamic_hedge
+type: "dynamic_hedge"
+
+# Binance spread percentage for maker orders (0.1% = 0.1)
+spread_percent: 0.1
+
+# Dynamic hedge strategy parameters
+monitor_interval: 5s          # 监控间隔
+max_leverage: 3.0             # 最大杠杆率 (停止开仓)
+emergency_leverage: 5.0       # 紧急平仓杠杆率
+stop_duration: 10m            # 停止开仓等待时间
+
+# Continuous trading mode (for high volume)
+continuous_mode: true         # 启用持续交易模式
+trading_interval: 30s         # 每笔交易间隔
+volume_target: 100000.0       # 日交易量目标 (USDT)
+max_daily_trades: 1000        # 每日最大交易次数
+
+# Logging configuration
+logging:
+level: "debug"
+output: "logs/app.log"
+max_size: 100
+max_age: 7
+max_backups: 3
+compress: true
