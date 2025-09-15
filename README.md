@@ -1,29 +1,19 @@
-# Lighter Exchange Trading Bot
+# 双交易所套利交易机器人
 
-这个项目实现了基于Lighter交易所Go SDK的自动化交易功能，主要实现：
+这个项目实现了基于Lighter和Binance交易所的双交易所套利策略，主要功能：
 
-- 在Lighter交易所做多BTC
-- 在Lighter交易所做空ETH
+- **Lighter交易所** (作为Taker): 做多BTC + 做空ETH
+- **Binance交易所** (作为Maker): 做空BTC + 做多ETH
 
 ## 功能特性
 
-### 1. BTC市价多单
-- 使用市价单在Lighter交易所买入BTC
-- 固定1000 USDT本位交易
-- 3倍杠杆
-- 作为Taker执行
+### 阶段一: Lighter交易所 (Taker策略)
+- **BTC做多**: 市价单买入BTC，1000 USDT本位，3倍杠杆
+- **ETH做空**: 市价单卖出ETH，1000 USDT本位，3倍杠杆
 
-### 2. ETH市价空单
-- 使用市价单在Lighter交易所卖出ETH
-- 固定1000 USDT本位交易
-- 3倍杠杆
-- 作为Taker执行
-
-### 3. 现代化技术栈
-- **配置管理**: 使用 [Viper](https://github.com/spf13/viper) 支持多种配置源
-- **日志系统**: 使用 [Uber Zap](https://github.com/uber-go/zap) 高性能结构化日志
-- **日志轮转**: 集成 [Lumberjack](https://github.com/natefinch/lumberjack) 自动日志轮转
-- **构建工具**: 完善的 Makefile 支持
+### 阶段二: Binance交易所 (Maker策略)
+- **BTC做空**: 限价单卖出BTC，1000 USDT，0.1%价差
+- **ETH做多**: 限价单买入ETH，1000 USDT，0.1%价差
 
 ## 使用方法
 
@@ -47,18 +37,23 @@ vim config.yaml
 
 #### 配置项说明
 
-必填配置:
+**Lighter交易所配置 (必填):**
 - `lighter.api_key`: Lighter API密钥
 - `lighter.secret_key`: Lighter Secret密钥
 - `lighter.private_key`: 十六进制格式的私钥 (80个字符，40字节)
 
-可选配置(有默认值):
+**Binance交易所配置 (必填):**
+- `binance.api_key`: Binance API密钥
+- `binance.secret_key`: Binance Secret密钥
+- `binance.testnet`: 是否使用测试网 (默认: false)
+
+**可选配置(有默认值):**
 - `lighter.base_url`: API地址 (默认: https://api.lighter.xyz)
 - `lighter.chain_id`: 链ID (默认: 1)
 - `lighter.account_index`: 账户索引 (默认: 1)
 - `lighter.api_key_index`: API密钥索引 (默认: 0)
-- `trading.usdt_amount`: USDT交易数量 (默认: 1000)
-- `trading.leverage`: 杠杆倍数 (默认: 3)
+- `trading.usdt_amount`: 每次交易USDT数量 (默认: 1000)
+- `trading.leverage`: Lighter杠杆倍数 (默认: 3)
 - `logging.level`: 日志级别 (默认: info)
 
 ### 编译和运行
@@ -106,23 +101,22 @@ go build -o build/lighter-trader cmd/main.go
 
 ## 配置说明
 
-### 交易规格
+### 套利交易规格
 - **交易方式**: USDT本位合约
 - **固定金额**: 每次1000 USDT
-- **杠杆倍数**: 3倍杠杆
+- **Lighter杠杆**: 3倍杠杆
+- **Binance价差**: 0.1% (确保作为Maker成交)
+
+### Lighter交易所配置
 - **订单类型**: 市价单 (作为Taker)
+- **BTC市场索引**: 0
+- **ETH市场索引**: 1
+- **订单方向**: IsAsk = 0 (买入), IsAsk = 1 (卖出)
 
-### 市场索引
-- BTC: 0
-- ETH: 1
-
-### 订单类型
-- MarketOrder: 市价单
-- ImmediateOrCancel: 立即执行或取消
-
-### 订单方向
-- IsAsk = 0: 买入(做多)
-- IsAsk = 1: 卖出(做空)
+### Binance交易所配置
+- **订单类型**: 限价单 (作为Maker)
+- **交易对**: BTCUSDT, ETHUSDT
+- **价格策略**: 基于当前市价±0.1%设置限价
 
 ## Makefile命令参考
 
@@ -147,52 +141,46 @@ go build -o build/lighter-trader cmd/main.go
 - `make dev-deps` - 安装开发依赖工具
 - `make ci` - 运行完整CI检查
 
-## 技术实现
-
-### 核心技术栈
-- **Lighter Go SDK**: 官方SDK (`github.com/elliottech/lighter-go`)
-- **配置管理**: Viper - 支持YAML文件、环境变量、多种配置源
-- **日志系统**: Uber Zap - 高性能结构化日志
-- **日志轮转**: Lumberjack - 自动日志文件轮转和压缩
-- **构建工具**: 完善的Makefile支持
-
-### 配置系统特性
-- **多配置源**: 支持YAML文件、环境变量、默认值
-- **优先级**: 环境变量 > 配置文件 > 默认值
-- **自动加载**: 自动搜索多个路径下的配置文件
-- **类型安全**: 强类型配置结构体
-- **验证机制**: 配置项有效性验证
-
-### 日志系统特性
-- **结构化日志**: JSON格式便于解析和分析
-- **多输出**: 同时输出到控制台和文件
-- **日志级别**: debug, info, warn, error
-- **自动轮转**: 按大小、时间自动轮转日志文件
-- **性能优化**: 零分配的高性能日志记录
-
 ### 签名机制
 使用Poseidon哈希和Schnorr签名来确保交易安全性。
 
-### 交易流程
-1. 加载配置 (支持多种配置源)
-2. 初始化日志系统
-3. 创建订单请求
-4. 生成交易参数
-5. 签名交易
-6. 记录详细日志
-7. 返回交易信息
+### 套利交易流程
+1. **初始化阶段**
+   - 加载配置 (支持多种配置源)
+   - 初始化日志系统
+   - 创建Lighter和Binance客户端
+   - 验证API连接
+
+2. **阶段一: Lighter交易所执行 (Taker)**
+   - 下BTC市价多单 (1000 USDT, 3x杠杆)
+   - 下ETH市价空单 (1000 USDT, 3x杠杆)
+   - 记录交易哈希
+
+3. **阶段二: Binance交易所执行 (Maker)**
+   - 获取当前BTC/ETH价格
+   - 计算最优Maker价格 (±0.1%价差)
+   - 下BTC限价空单 (1000 USDT)
+   - 下ETH限价多单 (1000 USDT)
+   - 记录订单ID
+
+4. **完成总结**
+   - 输出所有头寸信息
+   - 记录套利策略执行结果
 
 ## 注意事项
 
 1. **安全性**: 请妥善保管你的私钥和API密钥
 2. **网络**: 确保网络连接稳定
-3. **余额**: 确保账户有足够余额执行交易
+3. **余额**: 确保两个交易所账户都有足够余额
 4. **测试**: 建议先在测试环境中验证功能
+5. **风险**: 套利策略存在市场风险，请谨慎使用
+6. **时间**: 两个交易所订单执行有时间差，注意市场波动风险
 
 ## 依赖项
 
 ### 核心依赖
 - `github.com/elliottech/lighter-go`: Lighter Go SDK
+- `github.com/adshao/go-binance/v2`: Binance Go SDK
 - `github.com/spf13/viper`: 配置管理库
 - `go.uber.org/zap`: 高性能日志库
 - `gopkg.in/natefinch/lumberjack.v2`: 日志轮转库
@@ -202,6 +190,7 @@ go build -o build/lighter-trader cmd/main.go
 - `github.com/ethereum/go-ethereum`: 以太坊相关工具
 - `github.com/fsnotify/fsnotify`: 文件系统监控
 - `go.uber.org/multierr`: 多错误处理
+- `github.com/gorilla/websocket`: WebSocket连接 (Binance)
 
 ## 许可证
 

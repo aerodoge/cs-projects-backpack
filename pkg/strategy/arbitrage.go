@@ -7,62 +7,75 @@ import (
 
 	"go.uber.org/zap"
 
-	"cs-projects-backpack/pkg/lighter"
 	"cs-projects-backpack/pkg/logger"
 )
 
 type ArbitrageStrategy struct {
-	lighterClient *lighter.Client
-	logger        *zap.Logger
+	lighterStrategy *LighterStrategy
+	binanceStrategy *BinanceStrategy
+	logger          *zap.Logger
 }
 
 type ArbitrageConfig struct {
-	USDTAmount int64 // 每次交易的USDT数量
-	Leverage   int   // 杠杆倍数
+	USDTAmount    int64   // Lighter每次交易的USDT数量
+	USDCAmount    int64   // Binance每次交易的USDC数量
+	Leverage      int     // Lighter杠杆倍数
+	SpreadPercent float64 // Binance挂单价差百分比
 }
 
-func NewArbitrageStrategy(lighterClient *lighter.Client) *ArbitrageStrategy {
+func NewArbitrageStrategy(lighterStrategy *LighterStrategy, binanceStrategy *BinanceStrategy) *ArbitrageStrategy {
 	return &ArbitrageStrategy{
-		lighterClient: lighterClient,
-		logger:        logger.Named("arbitrage-strategy"),
+		lighterStrategy: lighterStrategy,
+		binanceStrategy: binanceStrategy,
+		logger:          logger.Named("arbitrage-strategy"),
 	}
 }
 
 func (s *ArbitrageStrategy) ExecuteBTCETHArbitrage(ctx context.Context, config *ArbitrageConfig) error {
-	s.logger.Info("Starting BTC-ETH arbitrage strategy",
-		zap.Int64("usdt_amount", config.USDTAmount),
-		zap.Int("leverage", config.Leverage),
+	s.logger.Info("Starting BTC-ETH dual-exchange arbitrage strategy",
+		zap.Int64("lighter_usdt_amount", config.USDTAmount),
+		zap.Int64("binance_usdc_amount", config.USDCAmount),
+		zap.Int("lighter_leverage", config.Leverage),
+		zap.Float64("binance_spread_percent", config.SpreadPercent),
 	)
 
-	s.logger.Info("Executing on Lighter exchange with USDT-denominated orders")
+	// Phase 1: Execute on Lighter exchange (Taker)
+	s.logger.Info("=== Phase 1: Executing on Lighter exchange (Taker) ===")
 
-	s.logger.Info("Placing BTC long order",
-		zap.Int64("usdt_amount", config.USDTAmount),
-		zap.Int("leverage", config.Leverage),
-	)
-	btcTx, err := s.lighterClient.PlaceBTCLong(ctx, config.USDTAmount, config.Leverage)
-	if err != nil {
-		s.logger.Error("BTC long order failed", zap.Error(err))
-		return fmt.Errorf("BTC多单失败: %w", err)
+	lighterConfig := &LighterConfig{
+		USDTAmount: config.USDTAmount,
+		Leverage:   config.Leverage,
 	}
-	s.logger.Info("BTC long order successful", zap.String("tx_hash", btcTx.GetTxHash()))
+
+	err := s.lighterStrategy.ExecuteBTCETHPair(ctx, lighterConfig)
+	if err != nil {
+		s.logger.Error("Lighter strategy execution failed", zap.Error(err))
+		return fmt.Errorf("lighter策略执行失败: %w", err)
+	}
+
+	// Phase 2: Execute opposite on Binance (Maker)
+	s.logger.Info("=== Phase 2: Executing opposite on Binance (Maker) ===")
 
 	time.Sleep(1 * time.Second)
 
-	s.logger.Info("Placing ETH short order",
-		zap.Int64("usdt_amount", config.USDTAmount),
-		zap.Int("leverage", config.Leverage),
-	)
-	ethTx, err := s.lighterClient.PlaceETHShort(ctx, config.USDTAmount, config.Leverage)
-	if err != nil {
-		s.logger.Error("ETH short order failed", zap.Error(err))
-		return fmt.Errorf("ETH空单失败: %w", err)
+	binanceConfig := &BinanceConfig{
+		USDCAmount:    float64(config.USDCAmount),
+		SpreadPercent: config.SpreadPercent,
 	}
-	s.logger.Info("ETH short order successful", zap.String("tx_hash", ethTx.GetTxHash()))
 
-	s.logger.Info("Arbitrage strategy completed successfully")
-	s.logger.Warn("Remember to execute opposite operations on Binance to complete arbitrage",
-		zap.String("recommendation", fmt.Sprintf("Short BTC and Long ETH on Binance with %d USDT and %dx leverage", config.USDTAmount, config.Leverage)),
+	err = s.binanceStrategy.ExecuteBTCETHPair(ctx, binanceConfig)
+	if err != nil {
+		s.logger.Error("Binance strategy execution failed", zap.Error(err))
+		return fmt.Errorf("binance策略执行失败: %w", err)
+	}
+
+	// Summary
+	s.logger.Info("=== Arbitrage strategy completed successfully ===")
+	s.logger.Info("Positions summary",
+		zap.String("lighter_btc", "LONG with leverage"),
+		zap.String("lighter_eth", "SHORT with leverage"),
+		zap.String("binance_btc", "SHORT as maker"),
+		zap.String("binance_eth", "LONG as maker"),
 	)
 
 	return nil
