@@ -1,0 +1,13 @@
+.idea
+.vscode
+
+build/
+
+
+*.yaml
+*.example
+
+
+
+
+
