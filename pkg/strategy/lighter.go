@@ -40,7 +40,7 @@ func (s *LighterStrategy) ExecuteBTCETHPair(ctx context.Context, config *Lighter
 	btcTx, err := s.client.PlaceBTCLong(ctx, config.USDTAmount, config.Leverage)
 	if err != nil {
 		s.logger.Error("Lighter BTC long order failed", zap.Error(err))
-		return fmt.Errorf("Lighter BTC多单失败: %w", err)
+		return fmt.Errorf("lighter BTC多单失败: %w", err)
 	}
 	s.logger.Info("Lighter BTC long order successful", zap.String("tx_hash", btcTx.GetTxHash()))
 
@@ -51,7 +51,7 @@ func (s *LighterStrategy) ExecuteBTCETHPair(ctx context.Context, config *Lighter
 	ethTx, err := s.client.PlaceETHShort(ctx, config.USDTAmount, config.Leverage)
 	if err != nil {
 		s.logger.Error("Lighter ETH short order failed", zap.Error(err))
-		return fmt.Errorf("Lighter ETH空单失败: %w", err)
+		return fmt.Errorf("lighter ETH空单失败: %w", err)
 	}
 	s.logger.Info("Lighter ETH short order successful", zap.String("tx_hash", ethTx.GetTxHash()))
 

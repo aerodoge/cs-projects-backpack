@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -41,8 +42,32 @@ type TradingConfig struct {
 }
 
 type StrategyConfig struct {
-	Type          string  `mapstructure:"type"`           // 策略类型: lighter, binance, arbitrage
-	SpreadPercent float64 `mapstructure:"spread_percent"` // Binance价差百分比
+	Type              string        `mapstructure:"type"`               // 策略类型: lighter, binance, arbitrage, dynamic_hedge
+	SpreadPercent     float64       `mapstructure:"spread_percent"`     // Binance价差百分比
+	MonitorInterval   time.Duration `mapstructure:"monitor_interval"`   // 动态对冲监控间隔
+	MaxLeverage       float64       `mapstructure:"max_leverage"`       // 最大杠杆率 (停止开仓)
+	EmergencyLeverage float64       `mapstructure:"emergency_leverage"` // 紧急平仓杠杆率
+	StopDuration      time.Duration `mapstructure:"stop_duration"`      // 停止开仓等待时间
+
+	// 持续交易配置
+	ContinuousMode  bool          `mapstructure:"continuous_mode"`  // 是否启用持续交易模式
+	TradingInterval time.Duration `mapstructure:"trading_interval"` // 交易间隔
+	VolumeTarget    float64       `mapstructure:"volume_target"`    // 日交易量目标 (USDT)
+	MaxDailyTrades  int           `mapstructure:"max_daily_trades"` // 每日最大交易次数
+
+	// 对冲平衡配置
+	EnableHedgeBalancing bool          `mapstructure:"enable_hedge_balancing"` // 是否启用对冲平衡检查
+	BalanceCheckInterval time.Duration `mapstructure:"balance_check_interval"` // 平衡检查间隔
+	BalanceTolerance     float64       `mapstructure:"balance_tolerance"`      // 平衡容差百分比
+	MinBalanceAdjust     float64       `mapstructure:"min_balance_adjust"`     // 最小平衡调整金额
+
+	// 快速执行配置
+	EnableFastExecution  bool          `mapstructure:"enable_fast_execution"`  // 是否启用快速执行
+	FastCheckInterval    time.Duration `mapstructure:"fast_check_interval"`    // 快速检查间隔
+	MaxExecutionDelay    time.Duration `mapstructure:"max_execution_delay"`    // 最大执行延迟
+	EnablePreExecution   bool          `mapstructure:"enable_pre_execution"`   // 启用预执行
+	PartialFillThreshold float64       `mapstructure:"partial_fill_threshold"` // 部分成交阈值
+	MaxSlippagePercent   float64       `mapstructure:"max_slippage_percent"`   // 最大滑点百分比
 }
 
 type LoggingConfig struct {
@@ -107,6 +132,30 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("strategy.type", "arbitrage")
 	v.SetDefault("strategy.spread_percent", 0.1)
+	v.SetDefault("strategy.monitor_interval", 5*time.Second)
+	v.SetDefault("strategy.max_leverage", 3.0)
+	v.SetDefault("strategy.emergency_leverage", 5.0)
+	v.SetDefault("strategy.stop_duration", 10*time.Minute)
+
+	// 持续交易默认配置
+	v.SetDefault("strategy.continuous_mode", true)
+	v.SetDefault("strategy.trading_interval", 30*time.Second)
+	v.SetDefault("strategy.volume_target", 100000.0) // 10万USDT日交易量目标
+	v.SetDefault("strategy.max_daily_trades", 1000)  // 每日最大1000笔交易
+
+	// 对冲平衡默认配置
+	v.SetDefault("strategy.enable_hedge_balancing", true)
+	v.SetDefault("strategy.balance_check_interval", 60*time.Second) // 每分钟检查一次平衡
+	v.SetDefault("strategy.balance_tolerance", 5.0)                 // 5%容差
+	v.SetDefault("strategy.min_balance_adjust", 50.0)               // 最小50U调整
+
+	// 快速执行默认配置
+	v.SetDefault("strategy.enable_fast_execution", true)
+	v.SetDefault("strategy.fast_check_interval", 200*time.Millisecond) // 200ms高频检查
+	v.SetDefault("strategy.max_execution_delay", 500*time.Millisecond) // 最大500ms延迟
+	v.SetDefault("strategy.enable_pre_execution", true)                // 启用预执行
+	v.SetDefault("strategy.partial_fill_threshold", 0.5)               // 50%部分成交阈值
+	v.SetDefault("strategy.max_slippage_percent", 0.1)                 // 0.1%最大滑点
 
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.output", "logs/app.log")
@@ -127,16 +176,17 @@ func (c *Config) GetLogDir() string {
 func (c *Config) Validate() error {
 	// 验证策略类型
 	validStrategies := map[string]bool{
-		"lighter":   true,
-		"binance":   true,
-		"arbitrage": true,
+		"lighter":       true,
+		"binance":       true,
+		"arbitrage":     true,
+		"dynamic_hedge": true,
 	}
 	if !validStrategies[c.Strategy.Type] {
-		return fmt.Errorf("strategy.type must be one of: lighter, binance, arbitrage")
+		return fmt.Errorf("strategy.type must be one of: lighter, binance, arbitrage, dynamic_hedge")
 	}
 
 	// 根据策略类型验证相应的配置
-	if c.Strategy.Type == "lighter" || c.Strategy.Type == "arbitrage" {
+	if c.Strategy.Type == "lighter" || c.Strategy.Type == "arbitrage" || c.Strategy.Type == "dynamic_hedge" {
 		if c.Lighter.APIKey == "" {
 			return fmt.Errorf("lighter.api_key is required for %s strategy", c.Strategy.Type)
 		}
@@ -148,7 +198,7 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if c.Strategy.Type == "binance" || c.Strategy.Type == "arbitrage" {
+	if c.Strategy.Type == "binance" || c.Strategy.Type == "arbitrage" || c.Strategy.Type == "dynamic_hedge" {
 		if c.Binance.APIKey == "" {
 			return fmt.Errorf("binance.api_key is required for %s strategy", c.Strategy.Type)
 		}

@@ -11,9 +11,10 @@ type TradingStrategy interface {
 type StrategyType string
 
 const (
-	StrategyLighter   StrategyType = "lighter"
-	StrategyBinance   StrategyType = "binance"
-	StrategyArbitrage StrategyType = "arbitrage"
+	StrategyLighter      StrategyType = "lighter"
+	StrategyBinance      StrategyType = "binance"
+	StrategyArbitrage    StrategyType = "arbitrage"
+	StrategyDynamicHedge StrategyType = "dynamic_hedge"
 )
 
 // GetStrategyName 获取策略名称

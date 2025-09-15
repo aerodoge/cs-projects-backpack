@@ -41,7 +41,7 @@ func (s *BinanceStrategy) ExecuteBTCETHPair(ctx context.Context, config *Binance
 	btcOrder, err := s.client.PlaceBTCShort(ctx, config.USDCAmount, config.SpreadPercent)
 	if err != nil {
 		s.logger.Error("Binance BTC short order failed", zap.Error(err))
-		return fmt.Errorf("Binance BTC空单失败: %w", err)
+		return fmt.Errorf("binance BTC空单失败: %w", err)
 	}
 	s.logger.Info("Binance BTC short order successful", zap.Int64("order_id", btcOrder.OrderID))
 
@@ -54,7 +54,7 @@ func (s *BinanceStrategy) ExecuteBTCETHPair(ctx context.Context, config *Binance
 	ethOrder, err := s.client.PlaceETHLong(ctx, config.USDCAmount, config.SpreadPercent)
 	if err != nil {
 		s.logger.Error("Binance ETH long order failed", zap.Error(err))
-		return fmt.Errorf("Binance ETH多单失败: %w", err)
+		return fmt.Errorf("binance ETH多单失败: %w", err)
 	}
 	s.logger.Info("Binance ETH long order successful", zap.Int64("order_id", ethOrder.OrderID))
 
